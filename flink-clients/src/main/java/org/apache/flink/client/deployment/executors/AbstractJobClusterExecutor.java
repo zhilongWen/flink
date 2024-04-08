@@ -68,17 +68,27 @@ public class AbstractJobClusterExecutor<
             @Nonnull final Configuration configuration,
             @Nonnull final ClassLoader userCodeClassloader)
             throws Exception {
+
+        //将 StreamGraph 转成 JobGraph
+        //创建、启动了 YarnClient， 包含了一些yarn、flink的配置和环境信息
+        //获取 Flink 集群特有资源配置 JobManager内存、TaskManager内存、每个Tm的slot数
+        //在 Yarn 上部署集群
+
+        // 将 流图（StreamGraph） 转换成 作业图（JobGraph）
         final JobGraph jobGraph =
                 PipelineExecutorUtils.getJobGraph(pipeline, configuration, userCodeClassloader);
 
+        // 集群描述器：创建、启动了 YarnClient， 包含了一些yarn、flink的配置和环境信息
         try (final ClusterDescriptor<ClusterID> clusterDescriptor =
                 clusterClientFactory.createClusterDescriptor(configuration)) {
             final ExecutionConfigAccessor configAccessor =
                     ExecutionConfigAccessor.fromConfiguration(configuration);
 
+            // 集群特有资源配置：JobManager内存、TaskManager内存、每个Tm的slot数
             final ClusterSpecification clusterSpecification =
                     clusterClientFactory.getClusterSpecification(configuration);
 
+            // 部署 jobGraph
             final ClusterClientProvider<ClusterID> clusterClientProvider =
                     clusterDescriptor.deployJobCluster(
                             clusterSpecification, jobGraph, configAccessor.getDetachedMode());
