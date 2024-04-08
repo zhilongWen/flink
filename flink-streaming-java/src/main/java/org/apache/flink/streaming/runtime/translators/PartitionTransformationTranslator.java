@@ -80,6 +80,10 @@ public class PartitionTransformationTranslator<OUT>
             exchangeMode = StreamExchangeMode.UNDEFINED;
         }
 
+        // 对逻辑转换（partition、union 等）的处理，如下是 transformPartition 函数的源码
+        // 对 partition 的转换没有生成具体的StreamNode 和StreamEdge，
+        // 而是添加一个虚节点。当partition 的下游 transform（如 map）
+        // 添加 edge 时（调用StreamGraph.addEdge），会把 partition 信息写入到 edge 中
         for (Integer inputId : context.getStreamNodeIds(input)) {
             final int virtualId = Transformation.getNewNodeId();
             streamGraph.addVirtualPartitionNode(

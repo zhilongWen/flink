@@ -394,6 +394,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
         applyDescriptorOptionToConfig(commandLine, effectiveConfiguration);
 
+        // HA的id
         final ApplicationId applicationId = getApplicationId(commandLine);
         if (applicationId != null) {
             final String zooKeeperNamespace;

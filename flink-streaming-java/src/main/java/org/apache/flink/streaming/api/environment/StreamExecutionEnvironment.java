@@ -2316,12 +2316,16 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         final List<Transformation<?>> originalTransformations = new ArrayList<>(transformations);
+
+        // 1、getStreamGraph(jobName) 构建 StreamGraph
         StreamGraph streamGraph = getStreamGraph();
         if (jobName != null) {
             streamGraph.setJobName(jobName);
         }
 
         try {
+
+            // 2、execute(Graph) 执行 StreamGraph
             return execute(streamGraph);
         } catch (Throwable t) {
             Optional<ClusterDatasetCorruptedException> clusterDatasetCorruptedException =
@@ -2520,6 +2524,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private StreamGraph getStreamGraph(List<Transformation<?>> transformations) {
         synchronizeClusterDatasetStatus();
+        // getStreamGraphGenerator() = StreamGraphGenerator
+        // 通过 StreamGraphGenerator 的 generate 方法构建 StreamGragh
         return getStreamGraphGenerator(transformations).generate();
     }
 

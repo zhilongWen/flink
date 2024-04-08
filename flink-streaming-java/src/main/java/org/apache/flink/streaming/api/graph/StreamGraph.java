@@ -389,6 +389,7 @@ public class StreamGraph implements Pipeline {
             String operatorName,
             Class<? extends TaskInvokable> invokableClass) {
 
+        // 添加一个 StreamNode
         addNode(
                 vertexID,
                 slotSharingGroup,
@@ -493,6 +494,7 @@ public class StreamGraph implements Pipeline {
             throw new RuntimeException("Duplicate vertexID " + vertexID);
         }
 
+        // 添加一个 StreamNode
         StreamNode vertex =
                 new StreamNode(
                         vertexID,

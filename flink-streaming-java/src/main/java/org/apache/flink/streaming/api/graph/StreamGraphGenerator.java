@@ -270,14 +270,30 @@ public class StreamGraphGenerator {
     }
 
     public StreamGraph generate() {
+
+        //1、构建一个 StreamGraph
+        //2、给 StreamGraph 设置相关属性
+        //3、初始化一个容器用来去存储 已经转换过的 Transformation
+        //4、遍历 transformations 将 Transformation 转换为 StreamNode
+        //Function --> Operator --> Transformation --> StreamNode
+
+
+        // 构建一个 StreamGraph
         streamGraph =
                 new StreamGraph(
                         configuration, executionConfig, checkpointConfig, savepointRestoreSettings);
+
+
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
+
+        // 给 StreamGraph 设置相关属性
+        // 时间语义、
         configureStreamGraph(streamGraph);
 
+        // 初始化一个容器用来去存储 已经转换过的 Transformation
         alreadyTransformed = new IdentityHashMap<>();
 
+        // 遍历 transformations 将 Transformation 转换为 StreamNode
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }
@@ -481,6 +497,8 @@ public class StreamGraphGenerator {
      * delegates to one of the transformation specific methods.
      */
     private Collection<Integer> transform(Transformation<?> transform) {
+
+        // 判断是否处理过，处理过直接返回入边
         if (alreadyTransformed.containsKey(transform)) {
             return alreadyTransformed.get(transform);
         }
@@ -791,6 +809,7 @@ public class StreamGraphGenerator {
         checkNotNull(translator);
         checkNotNull(transform);
 
+        // 获取所有输入边
         final List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
 
         // the recursive call might have already transformed this
@@ -812,6 +831,7 @@ public class StreamGraphGenerator {
 
         return shouldExecuteInBatchMode
                 ? translator.translateForBatch(transform, context)
+                // 构建当前节点上下游关系
                 : translator.translateForStreaming(transform, context);
     }
 
@@ -833,6 +853,7 @@ public class StreamGraphGenerator {
         }
 
         for (Transformation<?> transformation : parentTransformations) {
+            // 递归获取该定点的上一级输入边
             allInputIds.add(transform(transformation));
         }
         return allInputIds;

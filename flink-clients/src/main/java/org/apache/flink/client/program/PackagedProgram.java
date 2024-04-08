@@ -330,6 +330,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         try {
+            // 得到 运行主类的 main 方法实例
             mainMethod = entryClass.getMethod("main", String[].class);
         } catch (NoSuchMethodException e) {
             throw new ProgramInvocationException(
@@ -353,6 +354,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         try {
+            // 调用运行主类的 main 方法
             mainMethod.invoke(null, (Object) args);
         } catch (IllegalArgumentException e) {
             throw new ProgramInvocationException(

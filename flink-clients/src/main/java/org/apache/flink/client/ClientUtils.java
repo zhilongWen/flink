@@ -75,7 +75,7 @@ public enum ClientUtils {
     }
 
     public static void executeProgram(
-            PipelineExecutorServiceLoader executorServiceLoader,
+            PipelineExecutorServiceLoader executorServiceLoader, // 获取 PipelineExecutorServiceLoader 执行器，后面执行用户代码的时候会用到
             Configuration configuration,
             PackagedProgram program,
             boolean enforceSingleJobExecution,

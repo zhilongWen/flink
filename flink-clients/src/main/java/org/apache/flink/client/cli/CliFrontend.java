@@ -220,9 +220,23 @@ public class CliFrontend {
      * @param args Command line arguments for the run action.
      */
     protected void run(String[] args) throws Exception {
+
+        // -t yarn-per-job \
+        // -Dyarn.application.name=flink-pre-job-word-count \
+        // -Dparallelism.default=3 \
+        // -Djobmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.numberOfTaskSlots=2 \
+        // -Denv.java.opts="-Dfile.encoding=UTF-8" \
+        // -Drest.flamegraph.enabled=true \
+        // -c xxx.xxx.WordCount \
+        // xxx.xxx.WordCount.jar
+
         LOG.info("Running 'run' command.");
 
+        // 获取run动作，默认的配置项
         final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+        // 根据用户指定的配置项，进行解析 --class -j
         final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
         // evaluate help flag
@@ -231,18 +245,24 @@ public class CliFrontend {
             return;
         }
 
+        // 根据之前添加的顺序，挨个判断是否active：Generic、Yarn、Default
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
+        // -c -j -p ...
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
+        // 获取用户的jar包和其他依赖
         final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
+        // 获取有效配置：HA的id、Target（session、per-job）、JobManager内存、TaskManager内存、每个TM的slot数...
         final Configuration effectiveConfiguration =
                 getEffectiveConfiguration(activeCommandLine, commandLine, programOptions, jobJars);
 
         LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
 
+        // 构建 PackagedProgram
+        //  jarFile args mainClass  extractedTempLibraries classpaths userCodeClassLoader savepointSettings
         try (PackagedProgram program = getPackagedProgram(programOptions, effectiveConfiguration)) {
             executeProgram(effectiveConfiguration, program);
         }
@@ -256,7 +276,7 @@ public class CliFrontend {
 
         try {
             File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
-            return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
+            return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass); // -j --class
         } catch (FileNotFoundException | ProgramInvocationException e) {
             throw new CliArgsException(
                     "Could not get job jar and dependencies from JAR file: " + e.getMessage(), e);
@@ -283,6 +303,8 @@ public class CliFrontend {
 
         final Configuration effectiveConfiguration = new Configuration(configuration);
 
+        // 获取可用的有效配置信息
+        // HA的id、Target（session、per-job）、JobManager内存、TaskManager内存、每个TM的slot数...
         final Configuration commandLineConfiguration =
                 checkNotNull(activeCustomCommandLine).toConfiguration(commandLine);
 
@@ -1250,6 +1272,18 @@ public class CliFrontend {
      */
     public int parseAndRun(String[] args) {
 
+        //  run \
+        // -t yarn-per-job \
+        // -Dyarn.application.name=flink-pre-job-word-count \
+        // -Dparallelism.default=3 \
+        // -Djobmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.numberOfTaskSlots=2 \
+        // -Denv.java.opts="-Dfile.encoding=UTF-8" \
+        // -Drest.flamegraph.enabled=true \
+        // -c xxx.xxx.WordCount \
+        // xxx.xxx.WordCount.jar
+
         // check for action
         if (args.length < 1) {
             CliFrontendParser.printHelp(customCommandLines);
@@ -1258,9 +1292,19 @@ public class CliFrontend {
         }
 
         // get action
-        String action = args[0];
+        String action = args[0]; // run
 
         // remove action from parameters
+        // -t yarn-per-job \
+        // -Dyarn.application.name=flink-pre-job-word-count \
+        // -Dparallelism.default=3 \
+        // -Djobmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.numberOfTaskSlots=2 \
+        // -Denv.java.opts="-Dfile.encoding=UTF-8" \
+        // -Drest.flamegraph.enabled=true \
+        // -c xxx.xxx.WordCount \
+        // xxx.xxx.WordCount.jar
         final String[] params = Arrays.copyOfRange(args, 1, args.length);
 
         try {
@@ -1340,30 +1384,51 @@ public class CliFrontend {
 
     @VisibleForTesting
     static int mainInternal(final String[] args) {
+
+        // $FLINK_HOME/bin/flink run \
+        // -t yarn-per-job \
+        // -Dyarn.application.name=flink-pre-job-word-count \
+        // -Dparallelism.default=3 \
+        // -Djobmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.memory.process.size=2048mb \
+        // -Dtaskmanager.numberOfTaskSlots=2 \
+        // -Denv.java.opts="-Dfile.encoding=UTF-8" \
+        // -Drest.flamegraph.enabled=true \
+        // -c xxx.xxx.WordCount \
+        // xxx.xxx.WordCount.jar
+
+        //  打印输出一些环境信息 java version scala version hadoop version  ...
         EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
         // 1. find the configuration directory
+        // 查找 $FLINK/conf 目录
         final String configurationDirectory = getConfigurationDirectoryFromEnv();
 
         // 2. load the global configuration
+        // 加载 $FLINK/conf/flink-conf.yaml 配置
         final Configuration configuration =
                 GlobalConfiguration.loadConfiguration(configurationDirectory);
 
         // 3. load the custom command lines
+        // 加载自定义参数解析器 FlinkYarnSessionCli DefaultCLI
         final List<CustomCommandLine> customCommandLines =
                 loadCustomCommandLines(configuration, configurationDirectory);
 
         int retCode = INITIAL_RET_CODE;
         try {
+            // 初始化 CliFrontend
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
+
             CommandLine commandLine =
                     cli.getCommandLine(
                             new Options(),
                             Arrays.copyOfRange(args, min(args.length, 1), args.length),
                             true);
+
             Configuration securityConfig = new Configuration(cli.configuration);
             DynamicPropertiesUtil.encodeDynamicProperties(commandLine, securityConfig);
             SecurityUtils.install(new SecurityConfiguration(securityConfig));
+
             retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.parseAndRun(args));
         } catch (Throwable t) {
             final Throwable strippedThrowable =
