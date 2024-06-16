@@ -95,6 +95,8 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
         final StreamGraph streamGraph = context.getStreamGraph();
         final int transformationId = transformation.getId();
 
+        // execution.buffer-timeout.enabled
+        // 默认 100ms
         StreamGraphUtils.configureBufferTimeout(
                 streamGraph, transformationId, transformation, context.getDefaultBufferTimeout());
 

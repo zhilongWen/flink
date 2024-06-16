@@ -1374,6 +1374,21 @@ public class CliFrontend {
 
     /** Submits the job based on the arguments. */
     public static void main(final String[] args) {
+
+        //1.打印环境相关的日志
+        //2.获取 flink-conf.yaml 所在的目录，并解析 yaml 配置文件
+        //3.初始化解析器 cli，用于后续解析参数
+        //4.初始化 cliFronted
+        //5.通过 arg 获取 action （run）
+        //6.获取 run 行为默认的配置项
+        //7.解析 arg 并通过 action 的配置项进行匹配
+        //8.获取 job jar 包及其依赖的 jar
+        //9.获取 flink 集群有效的配置参数，ha 的 id，运行模式（session or pre-job 等），jobmanager 内存，taskmanager 内存及每个 taskmanager 的 slot 等信息
+        //10.构建 packageProgram，封装 job 对应的参数（mainclass、jar 包及其依赖 jar 的路径等）和 flink 集群对应的配置信息（savepoint 等信息）
+        //11.创建一个 DefaultExecutorServiceLoader
+        //12.通过 packageProgram 类加载器初始化 flink 的 ContextEnviroment 和 StreamContextEnvironment 流作业执行环境
+        //13.通过反射执行用户的 mainClass
+
         int retCode = INITIAL_RET_CODE;
         try {
             retCode = mainInternal(args);

@@ -294,7 +294,12 @@ public class StreamGraphGenerator {
         alreadyTransformed = new IdentityHashMap<>();
 
         // 遍历 transformations 将 Transformation 转换为 StreamNode
+        // 执行各种算子的 transformation： 由 算子 生成 Transformation 来构建 StreamGraph
+        // 当时在执行各种算子的时候，就已经把算子转换成对应的 Transformation 放入 alreadyTransformed 集合中了
+        // 自底向上(先遍历 input transformations) 对转换树的每个 transformation 进行转换
         for (Transformation<?> transformation : transformations) {
+            // 从 Env 对象中，把 Transformation 拿出来，然后转换成 StreamNode
+            // Function --> Operator --> Transformation --> StreamNode
             transform(transformation);
         }
 
@@ -312,6 +317,7 @@ public class StreamGraphGenerator {
 
         final StreamGraph builtStreamGraph = streamGraph;
 
+        // 把生成好的 StreamGragh 引用给返回对象，然后清空，保持当前这个 StreamGraphGenerator 依然是一个空的可再生利用的
         alreadyTransformed.clear();
         alreadyTransformed = null;
         streamGraph = null;
@@ -495,6 +501,9 @@ public class StreamGraphGenerator {
      *
      * <p>This checks whether we already transformed it and exits early in that case. If not it
      * delegates to one of the transformation specific methods.
+     *
+     * 对具体的一个 transformation 进行转换，转换成 StreamGraph 中的 StreamNode 和 StreamEdge
+     * 返回值为该 transform 的 id 集合，通常大小为 1 个（除 FeedbackTransformation）
      */
     private Collection<Integer> transform(Transformation<?> transform) {
 
@@ -550,6 +559,8 @@ public class StreamGraphGenerator {
                 (TransformationTranslator<?, Transformation<?>>)
                         translatorMap.get(transform.getClass());
 
+        // 根据 transform 的类型，做相应不同的转换
+        // 将当前 Transformation 转换成 StreamNode 和 StreamEdge，便于构建 SreamGraph
         Collection<Integer> transformedIds;
         if (translator != null) {
             transformedIds = translate(translator, transform);

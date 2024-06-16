@@ -2525,6 +2525,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @Internal
     public StreamGraph getStreamGraph(boolean clearTransformations) {
         final StreamGraph streamGraph = getStreamGraph(transformations);
+
+        // 清空掉所有的 算子
+        // 当 StreamGraph 生成好了，则之前各种算子转换得到的 DataStream 就没用了
         if (clearTransformations) {
             transformations.clear();
         }
@@ -2533,6 +2536,28 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private StreamGraph getStreamGraph(List<Transformation<?>> transformations) {
         synchronizeClusterDatasetStatus();
+
+        //ction --> Operator --> Transformation --> StreamNode
+        //1.复制一份 StreamExecutionEnvironment 中所有算子的 transformations，如果构建异常这会基于此进行二次构建
+        //2.创建一个 StreamGraphGenerator，配置 checkpoint、savepoint、时间语义、状态后端等
+        //3.构建 StreamGraph 前初始化一个空的 StreamGraph，设置 StreamGraph 的共有配置，时间语义，状态后端等
+        //4.初始化一个空的 map 用来保存已经转换过的算子
+        //5.遍历 transformations 将其转换成 StreamNode
+        //6.首先根据第 4 步的 map 判断算子是否已经转换过，如果是的话直接返回其节点 id，没有转换过执行下面的操作
+        //7.获取该算子的所有输入边，根据不同的 transform 做不同的转换
+        //OneInputTransformation -> OneInputTransformationTranslator
+        //TwoInputTransformation -> TwoInputTransformationTranslator
+        //MultipleInputTransformation -> MultiInputTransformationTranslator
+        //KeyedMultipleInputTransformation -> MultiInputTransformationTranslator
+        //...
+        //8. 根据 operator 创建一个 StreamNode，并为其设置 序列化于反序列化方式，然后将其添加到 StreamGraph 中，StramGraph 实际是使用一个 map 保存 StreamNode，key 为 StramNode 的 id，value 为 streamNode
+        //9. 然后给创建好的 StreamNode 设置并行度，state 等信息
+        //10.为 StreamNode 设置 StreamEdge，根据当前 StreamNode 个 上游 StreamNode 的 id 获取 Node，根据分区器与并行度设置上下游算子的数据传输模式，Forward，Rebalance 等，然后通过创建好的 StreamEdge 连接 上下游的 StreamNode
+        //11.StreamGraph 构建成功后，清空 StreamExecutionEnvironment 的 transformations
+        //对逻辑转换（partition、union 等）的处理，如下是 transformPartition 函数的源码
+        //对 partition 的转换没有生成具体的StreamNode 和StreamEdge，而是添加一个虚节点。当partition 的下游 transform（如 map）添加 edge 时（调用StreamGraph.addEdge），会把 partition 信息写入到 edge 中
+        //org.apache.flink.streaming.api.graph.StreamGraphGenerator#transform
+
         // getStreamGraphGenerator() = StreamGraphGenerator
         // 通过 StreamGraphGenerator 的 generate 方法构建 StreamGragh
         return getStreamGraphGenerator(transformations).generate();
