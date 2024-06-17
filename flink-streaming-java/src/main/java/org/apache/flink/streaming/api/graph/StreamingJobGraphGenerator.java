@@ -241,6 +241,37 @@ public class StreamingJobGraphGenerator {
     }
 
     private JobGraph createJobGraph() {
+
+        //能减少线程之间的切换，减少消息的序列化/反序列化，减少数据在缓冲区的交换，减少了延迟的同时提高整体的吞吐量
+        //1.创建一个 StreamingJobGraphGenerator 构建 JobGraph
+        //2.设置 job 模式，流模式 or 批模式，并配置是否可动态更新（新特性）
+        //3.根据 StreamGraph 获取所有的 source 节点
+        //4.遍历所有 source StreamNode，并判断是否转化过，如果没有执行下面的操作，如果有遍历下一个
+        //5.创建两个 StreamEdge 几个，用来保存能够 chaining 和不能 chaining 的边（一个边连接两个节点，等于就是保存能够 chaining 和 不能够 chaining 的节点）
+        //6.获取获取需要处理的 StreamNode 的所有出边，判断是否能够与下游的 StreamNode chaining 在一起
+        //      能够 chaining 在一起的条件
+        //1、下游节点的入度为1 （也就是说下游节点没有来自其他节点的输入）
+        //2、上下游节点都在同一个 slot group 中
+        //3、前后算子不为空
+        //4、上游节点的 chain 策略为 ALWAYS 或 HEAD（只能与下游链接，不能与上游链接，Source 默认是 HEAD）
+        //5、下游节点的 chain 策略为 ALWAYS（可以与上下游链接，map、flatmap、filter 等默认是 ALWAYS）
+        //6、两个节点间物理分区逻辑是 ForwardPartitioner
+        //7、两个算子间的shuffle方式不等于批处理模式
+        //8、上下游的并行度一致
+        //9、用户没有禁用 chain，pipeline.operator-chaining.enabled
+        //7.遍历所有可以和不可以 chaining 在一起的 StreamNode，并递归的向下寻找，并保存
+        //8.设置可以 chaining 节点的 名字、最小资源、资源优先级等信息
+        //9.将 StreamNode 转为 JobVertex，并为其添加消费端的 IntermediateDataSetId（IntermediateDataSetId 是在构建 StreamNode 完后添加配置信息创建的）
+        //10.添加要执行的主类 StreamTask xxx 方法（也是构建 StreamNode 时传入的），并行度，最大并行度等信息，最后将 JobVertex
+        // 封装成一个 StreamConfig，如果当前节点是 chain 的起始节点, 则直接创建 JobVertex 并返回 StreamConfig,
+        // 否则先创建一个空的 StreamConfig
+        //这里实际上，如果节点不能 chain 在一起，那么 currentNodeId 跟 startNodeId 肯定是不相等的
+        //reateJobVertex 函数就是根据 StreamNode 创建对应的 JobVertex, 并返回了空的 StreamConfig
+        //11.给 JobVerext 设置 JobEdge 将所有的 JobVertex 连接起来，创建一个 IntermediateDataSet，并创建一个 JobEdge，将 IntermediateDataSet 作为参数传入，然后为 IntermediateDataSet 设置消费边也就是与其一起创建的 Edge
+        //12.设置 SnapshotSettings， checkpoint 相关的设置，传递执行环境配置， 设置 ExecutionConfig 等信息
+        //13.最后将创建好的 JobGraph 返回
+        
+
         preValidate();
 
         // 设置 job 类型，流 or 批

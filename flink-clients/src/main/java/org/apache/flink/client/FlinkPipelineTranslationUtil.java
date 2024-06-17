@@ -38,7 +38,7 @@ public final class FlinkPipelineTranslationUtil {
             Configuration optimizerConfiguration,
             int defaultParallelism) {
 
-        // 获取 FlinkPipelineTranslator
+        // 获取 FlinkPipelineTranslator  -> StreamGraphTranslator
         FlinkPipelineTranslator pipelineTranslator =
                 getPipelineTranslator(userClassloader, pipeline);
 

@@ -2353,6 +2353,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @Internal
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 
+        // org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.executeAsync(org.apache.flink.streaming.api.graph.StreamGraph)
         //  异步提交执行 StreamGraph
         final JobClient jobClient = executeAsync(streamGraph);
 
