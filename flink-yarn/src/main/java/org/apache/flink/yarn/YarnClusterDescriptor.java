@@ -599,7 +599,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private ClusterClientProvider<ApplicationId> deployInternal(
             ClusterSpecification clusterSpecification,
             String applicationName,
-            String yarnClusterEntrypoint,
+            String yarnClusterEntrypoint,  // org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint
             @Nullable JobGraph jobGraph,
             boolean detached)
             throws Exception {
@@ -630,15 +630,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
         }
 
+        //  部署前检查：jar包路径、conf路径、yarn最大核数....
         isReadyForDeployment(clusterSpecification);
 
         // ------------------ Check if the specified queue exists --------------------
 
+        // 检查指定的yarn队列是否存在
         checkYarnQueues(yarnClient);
 
         // ------------------ Check if the YARN ClusterClient has the requested resources
         // --------------
 
+
+        // 检查yarn是否有足够的资源
         // Create application via yarnClient
         final YarnClientApplication yarnApplication = yarnClient.createApplication();
         final GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
@@ -688,6 +692,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.set(
                 ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
+        // 开始启动AM
         ApplicationReport report =
                 startAppMaster(
                         flinkConfiguration,
@@ -860,6 +865,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // ------------------ Initialize the file systems -------------------------
 
+        // 初始化、创建 Hadoop的 FileSystem
         org.apache.flink.core.fs.FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
@@ -876,6 +882,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             + "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
                             + "The Flink YARN client needs to store its files in a distributed file system");
         }
+
+        // Yarn应用的文件上传器：FS、对应的HDFS路径
+        //  用来上传：用户jar包、flink的依赖、flink的配置文件（接下来接近300行，不用看）
+        // 直接跳到 fileUploader.close()
 
         ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
@@ -1198,9 +1208,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
         }
 
+        // jobmanager内存配置
         final JobManagerProcessSpec processSpec =
                 JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
                         flinkConfiguration, JobManagerOptions.TOTAL_PROCESS_MEMORY);
+        // 封装启动 ApplicationMaster 的命令  ，设置 jobManager 的内存
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
@@ -1219,6 +1231,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         Utils.setAclsFor(amContainer, flinkConfiguration);
 
         // Setup CLASSPATH and environment variables for ApplicationMaster
+        // 配置 amContainer 环境
+        // 创建Map，用来存储 AM的环境变量和类路径
         final Map<String, String> appMasterEnv =
                 generateApplicationMasterEnv(
                         fileUploader,
@@ -1278,6 +1292,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 new DeploymentFailureHook(yarnApplication, fileUploader.getApplicationDir());
         Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
         LOG.info("Submitting application master " + appId);
+
+        // 提交应用，启动一个 applicationMaster
         yarnClient.submitApplication(appContext);
 
         LOG.info("Waiting for the cluster to be allocated");
