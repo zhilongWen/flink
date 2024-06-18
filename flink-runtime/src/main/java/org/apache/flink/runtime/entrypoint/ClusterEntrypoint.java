@@ -286,6 +286,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private void runCluster(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         synchronized (lock) {
+
+            // 初始化服务：Rpc相关
             initializeServices(configuration, pluginManager);
 
             // write host information into configuration
@@ -296,6 +298,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     dispatcherResourceManagerComponentFactory =
                             createDispatcherResourceManagerComponentFactory(configuration);
 
+            // 创建和启动 JobManager 里的组件：Dispatcher、ResourceManager、JobMaster
+            // 初始化一个 DefaultDispatcherResourceManagerComponentFactory 工厂实例
+            // 内部初始化了四大工厂实例
+            // 1、DispatcherRunnerFactory = DefaultDispatcherRunnerFactory
+            // 2、ResourceManagerFactory = StandaloneResourceManagerFactory
+            // 3、RestEndpointFactory（WenMonitorEndpoint的工厂） = SessionRestEndpointFactory
+            // 返回值：DefaultDispatcherResourceManagerComponentFactory
             clusterComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
@@ -343,6 +352,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
+
+            // 获取资源 id
             resourceId =
                     configuration
                             .getOptional(JobManagerOptions.JOB_MANAGER_RESOURCE_ID)
@@ -360,12 +371,19 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     getClass().getSimpleName(),
                     resourceId);
 
+            // 获取工作目录
             workingDirectory =
                     ClusterEntrypointUtils.createJobManagerWorkingDirectory(
                             configuration, resourceId);
 
             LOG.info("Using working directory: {}.", workingDirectory);
 
+
+            // 初始化 rpc 服务并启动
+            // 创建一个 Akka rpc 服务 commonRpcService： 基于 Akka 的 RpcService 实现，内部使用一个 Supervisor 包装的 actor
+            // RPC 服务启动 Akka 参与者来接收从 RpcGateway 调用 RPC
+            // commonRpcService 其实是一个基于 akka 得 actorSystem，其实就是一个 tcp 的 rpc 服务，端口为：6123
+            // org.apache.flink.runtime.rpc.pekko.PekkoRpcSystem
             rpcSystem = RpcSystem.load(configuration);
 
             commonRpcService =
@@ -379,10 +397,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             JMXService.startInstance(configuration.get(JMXServerOptions.JMX_SERVER_PORT));
 
+            // 设置 host 和 port
             // update the configuration used to create the high availability services
             configuration.set(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
             configuration.set(JobManagerOptions.PORT, commonRpcService.getPort());
 
+            // 初始化一个 ioExecutor 线程池，默认 cup 核数的 4 倍
             ioExecutor =
                     Executors.newFixedThreadPool(
                             ClusterEntrypointUtils.getPoolSize(configuration),
@@ -396,16 +416,37 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             // Obtaining delegation tokens and propagating them to the local JVM receivers in a
             // one-time fashion is required because BlobServer may connect to external file systems
             delegationTokenManager.obtainDelegationTokens();
+
+            // HA service 相关的实现，它的作用有很多，到底使用哪种根据用户的需求来定义
+            // 比如：处理 ResourceManager 的 leader 选举、JobManager leader 的选举等；
+            // 默认 haServices = ZooKeeperHaServices
             haServices = createHaServices(configuration, ioExecutor, rpcSystem);
+
+            // 初始化一个 BlobServer，并启动
+            // 要管理一些大文件的上传等，比如用户作业的 jar 包、TM 上传 log 文件等
+            // Blob 是指二进制大对象也就是英文 Binary Large Object 的缩写
             blobServer =
                     BlobUtils.createBlobServer(
                             configuration,
                             Reference.borrowed(workingDirectory.unwrap().getBlobStorageDirectory()),
                             haServices.createBlobStore());
             blobServer.start();
+
             configuration.set(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
+
+            // 初始化一个心跳服务
+            // 心跳间隔时间 heartbeatInterval（heartbeat.interval = 10000）
+            // 心跳超时时间 heartbeatTimeout（heartbeat.timeout = 50000）
+            // 在主节点中，其实有很多角色都有心跳服务。 那些这些角色的心跳服务，
+            // 都是在这个 heartbeatServices 的基础之上创建的这才是真正的 心跳服务的 提供者
+            // 谁需要心跳服务，通过 heartbeatServices 去提供一个实例 HeartBeatImpl，用来完成心跳
             heartbeatServices = createHeartbeatServices(configuration);
+
             failureEnrichers = FailureEnricherUtils.getFailureEnrichers(configuration);
+
+            // metrics（性能监控） 相关的服务
+            // 1、metricQueryServiceRpcService 也是一个 ActorySystem
+            // 2、用来跟踪所有已注册的Metric
             metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
 
             final RpcService metricQueryServiceRpcService =
@@ -425,6 +466,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ConfigurationUtils.getSystemResourceMetricsProbingInterval(
                                     configuration));
 
+            // ArchivedExecutionGraphStore: 存储 execution graph 的服务， 默认有两种实现，
+            // 1、MemoryArchivedExecutionGraphStore 主要是在内存中缓存，
+            // 2、FileArchivedExecutionGraphStore 会持久化到文件系统，也会在内存中缓存。
+            // 这些服务都会在前面第二步创建 DispatcherResourceManagerComponent 对象时使用到。
+            // 默认实现是基于 File 的
             executionGraphInfoStore =
                     createSerializableExecutionGraphStore(
                             configuration, commonRpcService.getScheduledExecutor());

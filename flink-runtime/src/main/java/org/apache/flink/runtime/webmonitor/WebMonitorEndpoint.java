@@ -1133,8 +1133,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         return Collections.emptyList();
     }
 
+    /**
+     * 主节点中的三个重要的组件：ResourceManager,Dispatcher,WebMonitorEndpint 启动的时候,都会进行选举，通过选来来触发服务的启动
+     * @throws Exception
+     */
     @Override
     public void startInternal() throws Exception {
+
+        // 选举并启动 leader
+        // 选举成功后将 leader 信息写入 zookeeper 中
         leaderElection.startLeaderElection(this);
 
         startExecutionGraphCacheCleanupTask();
@@ -1204,6 +1211,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
+        // 确认 leader，将 leader 写入 zookeeper 中
         leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
     }
 

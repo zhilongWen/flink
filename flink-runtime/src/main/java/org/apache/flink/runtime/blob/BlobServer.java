@@ -185,6 +185,7 @@ public class BlobServer extends Thread
             backlog = BlobServerOptions.FETCH_BACKLOG.defaultValue();
         }
 
+        // 启动一个定时任务，执行 TransientBlobCleanupTask
         // Initializing the clean up task
         this.cleanupTimer = new Timer(true);
 
@@ -194,6 +195,7 @@ public class BlobServer extends Thread
                 cleanupInterval,
                 cleanupInterval);
 
+        // 埋下钩子
         this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
 
         //  ----------------------- start the server -------------------
@@ -218,6 +220,7 @@ public class BlobServer extends Thread
                 config.getOptional(JobManagerOptions.BIND_HOST)
                         .orElseGet(NetUtils::getWildcardIPAddress);
 
+        // 创建 ServerSocket
         this.serverSocket =
                 NetUtils.createSocketFromPorts(
                         ports,
@@ -312,6 +315,8 @@ public class BlobServer extends Thread
     public void run() {
         try {
             while (!this.shutdownRequested.get()) {
+
+                // 接收到客户端的 Blob 链接请求，完成链接
                 BlobServerConnection conn =
                         new BlobServerConnection(NetUtils.acceptWithoutTimeout(serverSocket), this);
                 try {
@@ -322,6 +327,7 @@ public class BlobServer extends Thread
                         activeConnections.add(conn);
                     }
 
+                    // 开始工作
                     conn.start();
                     conn = null;
                 } finally {

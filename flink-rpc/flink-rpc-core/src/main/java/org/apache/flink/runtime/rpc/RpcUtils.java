@@ -148,14 +148,19 @@ public class RpcUtils {
             @Nullable String bindAddress,
             @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort)
             throws Exception {
+        
         RpcSystem.RpcServiceBuilder rpcServiceBuilder =
                 rpcSystem.remoteServiceBuilder(configuration, externalAddress, externalPortRange);
+
+        // 绑定主机名称和端口号
         if (bindAddress != null) {
             rpcServiceBuilder = rpcServiceBuilder.withBindAddress(bindAddress);
         }
         if (bindPort.isPresent()) {
             rpcServiceBuilder = rpcServiceBuilder.withBindPort(bindPort.get());
         }
+
+        // 创建并启动
         return rpcServiceBuilder.createAndStart();
     }
 

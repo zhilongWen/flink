@@ -164,6 +164,21 @@ public class DefaultDispatcherResourceManagerComponentFactory
                                     dispatcherGatewayRetriever,
                                     executor);
 
+            //  创建 WebMonitorEndpoint 并启动
+            //  在 Standalone模式下：DispatcherRestEndpoint
+            // 1、restEndpointFactory = SessionRestEndpointFactory
+            // 2、webMonitorEndpoint = DispatcherRestEndpoint
+            // 3、highAvailabilityServices.getClusterRestEndpointLeaderElectionService() = ZooKeeperLeaderElectionService
+            // 初始化各种 Handler，包括： JobSubmitHandler
+            //不管是这里初始化的那个 Handler， 里面都有一个 handleRequest 的方法
+            //ChannelInboundHandler  channelRead0()  方法，这个方法会自动被 Netty 去调用执行
+            //channelRead0() 的底层，最终调用的就是 Hnadler.handleRequest() 方法
+            //创建并启动 Netty 服务端
+            //选举并启动 WebMonitorEndpoint
+            //通过 ZooKeeperLeaderElectionHaServices 进行选举，最终调用的是 ZooKeeper 的 API 框架 Curator 实现的
+            //选举成功的执行 isLeader() 再调用 grantLeadership()  最终将 leader 节点的信息写入 zookeeper 的 leaderPath 路径下
+            //选举失败的执行 notLeader()
+            //确认 leader 节点将并将 leader 节点的信息写入 zookeeper 的 leaderPath 路径下
             webMonitorEndpoint =
                     restEndpointFactory.createRestEndpoint(
                             configuration,
@@ -172,6 +187,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             executor,
                             metricFetcher,
+                            // org.apache.flink.runtime.leaderelection.DefaultLeaderElection -》 ZooKeeperLeaderElectionHaServices
                             highAvailabilityServices.getClusterRestEndpointLeaderElection(),
                             fatalErrorHandler);
 

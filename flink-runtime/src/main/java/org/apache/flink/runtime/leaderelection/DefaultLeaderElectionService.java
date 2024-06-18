@@ -186,6 +186,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                     "The DefaultLeaderElectionService should have established a connection to the backend before it's started.");
 
             if (leaderElectionDriver == null) {
+                // 默认 org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver.ZooKeeperLeaderElectionDriver
                 createLeaderElectionDriver();
             }
 
@@ -201,9 +202,11 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
             if (issuedLeaderSessionID != null) {
                 // notifying the LeaderContender shouldn't happen in the contender's main thread
+                // 选举 leader
                 runInLeaderEventThread(
                         LEADER_ACQUISITION_EVENT_LOG_NAME,
                         () ->
+                                // 选举 leader
                                 notifyLeaderContenderOfLeadership(
                                         componentId, issuedLeaderSessionID));
             }
@@ -325,6 +328,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
         checkNotNull(leaderSessionID);
 
         synchronized (lock) {
+            // 再次校验是否是 leader
             if (hasLeadership(componentId, leaderSessionID)) {
                 Preconditions.checkState(
                         leaderElectionDriver != null,
@@ -340,6 +344,8 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                                 confirmedLeaderInformation,
                                 componentId,
                                 newConfirmedLeaderInformation);
+
+                // 将 leader 信息写入 zookeeper 中
                 leaderElectionDriver.publishLeaderInformation(
                         componentId, newConfirmedLeaderInformation);
             } else {

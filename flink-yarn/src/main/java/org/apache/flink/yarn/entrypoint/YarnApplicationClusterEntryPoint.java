@@ -63,6 +63,9 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
     }
 
     public static void main(final String[] args) {
+
+        // ApplicationMaster 的入口类
+
         // startup checks and logging
         EnvironmentInformation.logEnvironmentInfo(
                 LOG, YarnApplicationClusterEntryPoint.class.getSimpleName(), args);

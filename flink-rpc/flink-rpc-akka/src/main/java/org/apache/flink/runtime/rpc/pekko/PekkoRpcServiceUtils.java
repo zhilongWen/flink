@@ -330,6 +330,8 @@ public class PekkoRpcServiceUtils {
                 TriFunction<ActorSystem, PekkoRpcServiceConfiguration, ClassLoader, PekkoRpcService>
                         constructor)
                 throws Exception {
+
+            // 加载配置 ForkJoinExecutorConfiguration
             if (actorSystemExecutorConfiguration == null) {
                 actorSystemExecutorConfiguration =
                         PekkoUtils.getForkJoinExecutorConfig(
@@ -337,6 +339,7 @@ public class PekkoRpcServiceUtils {
                                         configuration));
             }
 
+            // 初始化 actorSystem
             final ActorSystem actorSystem;
 
             // pekko internally caches the context class loader
@@ -368,6 +371,7 @@ public class PekkoRpcServiceUtils {
                 }
             }
 
+            // 创建 PekkoRpcService
             return constructor.apply(
                     actorSystem,
                     PekkoRpcServiceConfiguration.fromConfiguration(configuration),

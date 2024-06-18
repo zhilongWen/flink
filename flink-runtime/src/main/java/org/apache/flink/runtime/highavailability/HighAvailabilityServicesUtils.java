@@ -86,11 +86,17 @@ public class HighAvailabilityServicesUtils {
     private static HighAvailabilityServices createZooKeeperHaServices(
             Configuration configuration, Executor executor, FatalErrorHandler fatalErrorHandler)
             throws Exception {
+
+        // 获取 BlobStoreService
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
 
+        // 获取一个监听器
         final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
+        // 创建一个 ZooKeeperLeaderElectionHaServices 服务
+        // 对象的内部，包装了一个 ZooKeeper 的实例对象
+        // 内部的 zk 代码实现： 用的 curator
         return new ZooKeeperLeaderElectionHaServices(
                 curatorFrameworkWrapper, configuration, executor, blobStoreService);
     }
@@ -103,6 +109,8 @@ public class HighAvailabilityServicesUtils {
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
 
+        // 获取 HA 模式, 一般，我们都是设置 zookeeper 模式
+        // 在 fink-conf.yaml 配置文件中，我们会去配置：high-availability = zookeeper
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
 
         switch (highAvailabilityMode) {
@@ -130,6 +138,8 @@ public class HighAvailabilityServicesUtils {
                 return new StandaloneHaServices(
                         resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress);
             case ZOOKEEPER:
+
+                // 默认
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:
                 return createCustomHAServices(

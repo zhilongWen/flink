@@ -22,13 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.pekko.ActorSystemScheduledExecutorAdapter;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
-import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
-import org.apache.flink.runtime.rpc.FencedRpcGateway;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcServer;
-import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.*;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
@@ -39,43 +33,24 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
-
-import org.apache.pekko.actor.AbstractActor;
-import org.apache.pekko.actor.ActorRef;
-import org.apache.pekko.actor.ActorSelection;
-import org.apache.pekko.actor.ActorSystem;
-import org.apache.pekko.actor.Address;
-import org.apache.pekko.actor.DeadLetter;
-import org.apache.pekko.actor.Props;
+import org.apache.pekko.actor.*;
 import org.apache.pekko.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
+import scala.reflect.ClassTag$;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Function;
 
-import scala.Option;
-import scala.reflect.ClassTag$;
-
-import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.guardCompletionWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.runWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.withContextClassLoader;
+import static org.apache.flink.runtime.concurrent.ClassLoadingUtils.*;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -127,6 +102,7 @@ public class PekkoRpcService implements RpcService {
         this.configuration = checkNotNull(configuration, "pekko rpc service configuration");
         this.flinkClassLoader = checkNotNull(flinkClassLoader, "flinkClassLoader");
 
+        // 获取 rpc 地址信息，解析 host port 等
         Address actorSystemAddress = PekkoUtils.getAddress(actorSystem);
 
         if (actorSystemAddress.host().isDefined()) {
@@ -143,6 +119,7 @@ public class PekkoRpcService implements RpcService {
 
         captureAskCallstacks = configuration.captureAskCallStack();
 
+        // 设置 Pekko akka rpc 系统的调度线程池执行器
         // Pekko always sets the threads context class loader to the class loader with which it was
         // loaded (i.e., the plugin class loader)
         // we must ensure that the context class loader is set to the Flink class loader when we
@@ -156,7 +133,9 @@ public class PekkoRpcService implements RpcService {
 
         stopped = false;
 
+        // 创建一个 akka
         supervisor = startSupervisorActor();
+        // 订阅消息
         startDeadLettersActor();
     }
 
@@ -171,6 +150,8 @@ public class PekkoRpcService implements RpcService {
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory(
                                 "RpcService-Supervisor-Termination-Future-Executor"));
+        // 创建一个 akka actor
+        // 创建一个 SupervisorActor，内部包装一个 actor
         final ActorRef actorRef =
                 SupervisorActor.startSupervisorActor(
                         actorSystem,

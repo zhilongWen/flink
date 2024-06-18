@@ -182,6 +182,7 @@ public abstract class RestServerEndpoint implements RestService {
             final Router router = new Router();
             final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
+            // 主要是初始化各种 Handler，包括： JobSubmitHandler
             handlers = initializeHandlers(restAddressFuture);
 
             /* sort the handlers such that they are ordered the following:
@@ -237,6 +238,7 @@ public abstract class RestServerEndpoint implements RestService {
                         }
                     };
 
+            // 启动 Netty 服务端
             NioEventLoopGroup bossGroup =
                     new NioEventLoopGroup(
                             1, new ExecutorThreadFactory("flink-rest-server-netty-boss"));
@@ -308,6 +310,7 @@ public abstract class RestServerEndpoint implements RestService {
 
             state = State.RUNNING;
 
+            // 启动 WebMonitorEndpoint
             startInternal();
         }
     }

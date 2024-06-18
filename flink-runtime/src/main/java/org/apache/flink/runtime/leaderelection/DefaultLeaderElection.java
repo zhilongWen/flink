@@ -38,6 +38,7 @@ class DefaultLeaderElection implements LeaderElection {
 
     @Override
     public void startLeaderElection(LeaderContender contender) throws Exception {
+        // 主节点中的三个重要的组件：ResourceManager,Dispatcher,WebMonitorEndpint 启动的时候,都会进行选举，通过选来来触发服务的启动
         Preconditions.checkNotNull(contender);
         parentService.register(componentId, contender);
     }

@@ -75,13 +75,19 @@ public interface HeartbeatServices {
      * @return An HeartbeatServices instance created from the given configuration
      */
     static HeartbeatServices fromConfiguration(Configuration configuration) {
+
+        // 获取心跳的两个关键参数：
+        // 1、心跳间隔时间 heartbeatInterval（heartbeat.interval = 10000）
+        // 2、心跳超时时间 heartbeatTimeout（heartbeat.timeout = 50000）
         long heartbeatInterval = configuration.get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
 
         long heartbeatTimeout = configuration.get(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
 
+        // 心跳错误次数 heartbeat.rpc-failure-threshold = 2
         int failedRpcRequestsUntilUnreachable =
                 configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);
 
+        // 启动心跳服务
         return new HeartbeatServicesImpl(
                 heartbeatInterval, heartbeatTimeout, failedRpcRequestsUntilUnreachable);
     }
