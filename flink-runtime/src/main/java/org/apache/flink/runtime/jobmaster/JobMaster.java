@@ -337,6 +337,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         log);
 
+        // 启动是创建 slotPool 用于管理 job 运行的资源
         this.slotPoolService =
                 checkNotNull(slotPoolServiceSchedulerFactory)
                         .createSlotPoolService(
@@ -360,6 +361,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.failureEnrichers = checkNotNull(failureEnrichers);
 
+        // 创建一个 defaultScheduleNG 将 jobGraph 转为 ExecutionGraph，并调度 ExecutionGraph
+        // org.apache.flink.runtime.scheduler.DefaultSchedulerFactory.createInstance
+        // 在 org.apache.flink.runtime.scheduler.SchedulerBase.SchedulerBase 中饿构造中将 jobGraph 转为 ExecutionGraph
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
@@ -438,7 +442,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     protected void onStart() throws JobMasterException {
         try {
+
+            // 启动作业调度执行工作
             startJobExecution();
+
         } catch (Exception e) {
             final JobMasterException jobMasterException =
                     new JobMasterException("Could not start the JobMaster.", e);
@@ -1012,6 +1019,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
         shuffleMaster.registerJob(context);
 
+        // 启动 jobMaster 的相关服务
+        // 与 TaskManager 和 flink 的 ResourceManager 心跳
         startJobMasterServices();
 
         log.info(
@@ -1020,6 +1029,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 jobGraph.getJobID(),
                 getFencingToken());
 
+        // 开始调度
         startScheduling();
     }
 
