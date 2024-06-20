@@ -40,6 +40,10 @@ under the License.
 			<id>confluent</id>
 			<url>https://packages.confluent.io/maven/</url>
 		</repository>
+		<repository>
+			<id>cloudera</id>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+		</repository>
 	</repositories>
 
 	<dependencies>
