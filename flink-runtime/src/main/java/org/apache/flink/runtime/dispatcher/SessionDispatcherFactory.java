@@ -39,6 +39,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
             PartialDispatcherServicesWithJobPersistenceComponents
                     partialDispatcherServicesWithJobPersistenceComponents)
             throws Exception {
+
         // create the default dispatcher
         return new StandaloneDispatcher(
                 rpcService,

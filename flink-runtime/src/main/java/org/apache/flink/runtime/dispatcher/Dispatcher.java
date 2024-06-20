@@ -347,6 +347,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public void onStart() throws Exception {
         try {
+
+            // 创建 dispatcher 必要的服务组件，这里只有监控
             startDispatcherServices();
         } catch (Throwable t) {
             final DispatcherException exception =
@@ -356,7 +358,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             throw exception;
         }
 
+        // 清理作业
         startCleanupRetries();
+        // 部署或恢复作业
         startRecoveredJobs();
 
         this.dispatcherBootstrap =
@@ -394,6 +398,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void startRecoveredJobs() {
+
+        // 获取待部署或恢复的 diapatcher
         for (JobGraph recoveredJob : recoveredJobs) {
             runRecoveredJob(recoveredJob);
         }

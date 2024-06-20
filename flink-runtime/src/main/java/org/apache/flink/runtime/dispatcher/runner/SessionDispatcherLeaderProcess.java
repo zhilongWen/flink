@@ -81,6 +81,8 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     @Override
     protected void onStart() {
+
+        // 启动 jobGraphStore 存储服务
         startServices();
 
         onGoingRecoveryOperation =
@@ -107,6 +109,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     private void createDispatcher(
             Collection<JobGraph> jobGraphs, Collection<JobResult> recoveredDirtyJobResults) {
 
+        // 创建并启动 dispatcher
         final DispatcherGatewayService dispatcherService =
                 dispatcherGatewayServiceFactory.create(
                         DispatcherId.fromUuid(getLeaderSessionId()),
@@ -131,7 +134,10 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
                                                 .map(JobResult::getJobId)
                                                 .collect(Collectors.toSet())),
                         ioExecutor)
-                .thenAcceptBoth(dirtyJobsFuture, this::createDispatcherIfRunning)
+                .thenAcceptBoth(dirtyJobsFuture,
+
+                        // 创建 dispatcher
+                        this::createDispatcherIfRunning)
                 .handle(this::onErrorIfRunning);
     }
 

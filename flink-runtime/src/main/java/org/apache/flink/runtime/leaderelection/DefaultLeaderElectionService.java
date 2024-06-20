@@ -445,7 +445,13 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
                 componentId,
                 issuedLeaderSessionID);
 
-        leaderContenderRegistry.get(componentId).grantLeadership(issuedLeaderSessionID);
+
+        leaderContenderRegistry.get(componentId)
+                // org.apache.flink.runtime.webmonitor.WebMonitorEndpoint.grantLeadership
+                // org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunner.grantLeadership
+                // org.apache.flink.runtime.jobmaster.JobMasterServiceLeadershipRunner.grantLeadership
+                // org.apache.flink.runtime.resourcemanager.ResourceManagerServiceImpl.grantLeadership
+                .grantLeadership(issuedLeaderSessionID);
     }
 
     @GuardedBy("lock")

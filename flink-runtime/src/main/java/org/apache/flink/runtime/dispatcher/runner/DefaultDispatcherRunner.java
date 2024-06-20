@@ -116,6 +116,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                             getClass().getSimpleName(),
                             leaderSessionID,
                             DispatcherLeaderProcess.class.getSimpleName());
+
+                    // 创建启动一个 dispatcher leader 选举程序
                     startNewDispatcherLeaderProcess(leaderSessionID);
                 });
     }
@@ -128,6 +130,7 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;
         FutureUtils.assertNoException(
                 previousDispatcherLeaderProcessTerminationFuture.thenRun(
+                        // 启动 dispatcher leader 选举程序
                         newDispatcherLeaderProcess::start));
     }
 
@@ -237,6 +240,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
                         leaderElection, fatalErrorHandler, dispatcherLeaderProcessFactory);
+
+        // 调用 start 方法开始选举
         dispatcherRunner.start();
         return dispatcherRunner;
     }

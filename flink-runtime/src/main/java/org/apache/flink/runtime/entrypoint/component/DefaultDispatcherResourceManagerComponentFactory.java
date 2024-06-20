@@ -249,6 +249,11 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             dispatcherOperationCaches,
                             failureEnrichers);
 
+            // Dispatcher 同样是一个 RpcEndpoint ，创建过程中会启动一个 rpc 服务，在创建完成后会立即启动 onStart()
+            //在创建 Dispatcher 前会先创建一个 DispatcherRunner，然后通过 ZooKeeperLeaderElectionService 进行选举，DispatcherRunner 的 leader 确认后会通过 dispatcherFactory 创建 Dispatcher，创建完成后调用其 onStart 方法启动 DispatcherRunner
+            //然后 DispatcherRunner 会引导程序完成初始化，首先恢复 JobGraghs，再恢复执行待恢复的 Job，调用 runJob 运行一个任务
+            //再提交运行作业前会先创建一个 JobManagerRunner，并且在创建 JobManagerRunner 的同时会启动 JobMaster，因 JobMaster 也是 Dispatcher 负责启动的，JobMaster 也是一个 FencedRpcEndpoint，所有创建完后会调用其 onStart 方法
+            //最后通过 JobManagerRunner 提交代恢复的作业，并在这个过程中通过调用 JobMaster 的 start 方法启动 JobMaster
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(

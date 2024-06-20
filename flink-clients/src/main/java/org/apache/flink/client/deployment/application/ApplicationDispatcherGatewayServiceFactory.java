@@ -89,10 +89,16 @@ public class ApplicationDispatcherGatewayServiceFactory
             JobGraphWriter jobGraphWriter,
             JobResultStore jobResultStore) {
 
+        // 获取需要部署或恢复的 jobId
         final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
 
         final Dispatcher dispatcher;
         try {
+
+            // 创建 dispatcher
+            // dispatcher 是一个 rpc 服务，所有创建后调用 onStart 方法
+            // org.apache.flink.runtime.dispatcher.SessionDispatcherFactory.createDispatcher
+            // org.apache.flink.runtime.dispatcher.Dispatcher.onStart
             dispatcher =
                     dispatcherFactory.createDispatcher(
                             rpcService,
@@ -113,6 +119,7 @@ public class ApplicationDispatcherGatewayServiceFactory
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
         }
 
+        // 启动 dispatcher
         dispatcher.start();
 
         return DefaultDispatcherGatewayService.from(dispatcher);

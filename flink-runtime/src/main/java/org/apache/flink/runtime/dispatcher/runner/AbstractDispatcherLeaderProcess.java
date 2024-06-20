@@ -98,6 +98,15 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
     private void startInternal() {
         log.info("Start {}.", getClass().getSimpleName());
         state = State.RUNNING;
+
+        // org.apache.flink.runtime.dispatcher.runner.JobDispatcherLeaderProcess.onStart
+        // org.apache.flink.client.deployment.application.ApplicationDispatcherGatewayServiceFactory.create (创建 dispatcher)
+
+        // org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess.onStart
+        // org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess.createDispatcherBasedOnRecoveredJobGraphsAndRecoveredDirtyJobResults
+        // org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess.createDispatcherIfRunning
+        // org.apache.flink.runtime.dispatcher.runner.SessionDispatcherLeaderProcess.createDispatcher
+        // org.apache.flink.client.deployment.application.ApplicationDispatcherGatewayServiceFactory.create (创建 dispatcher)
         onStart();
     }
 
