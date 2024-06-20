@@ -196,6 +196,17 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final String hostname = RpcUtils.getHostname(rpcService);
 
+
+            //ResourceManager 是一个 RpcEndpoint 创建成功后首先会调用 onStart()，启动成功后给自己发送 START 消息，表示  ResourceManager 已经成功启动好了
+            //创建 ResourceManager 的过程中会调用其父类 RpcEndpoint 启动 RPC 服务，RpcEndpoint 的 akka rpc，与初始化服务的 rpc 创建方式一样
+            // 【old  服务是通过 JDK 提供的动态代理 Proxy InvocationHandler 创建的，与高可用和和心跳服务等 rpc 服务通过 SupervisorActor 包装 actor 的方式不同 】，
+            // ResourceManager 创建完成后会立即调用 onStart 方法
+            //如果是 yarn 模式会启动 yarn 的 resourceManager，并通过 yarnclient 注册 ApplicationMaster，如果是 Standalone 模式则不会做任何处理，
+            //再然后通过 ZooKeeperLeaderElectionService 进行 leader 的选举工作
+            //选举成功的执行 isLeader() 再调用 grantLeadership()  最终将 leader 节点的信息写入 zookeeper 的 leaderPath 路径下
+            //选举失败的执行 notLeader()
+            //ResourceManager 的 leader 节点选举出来后会在其内部启动 SlotManager 用于资源管理，并启动两个定时任务用户管理 ResourceManager 与 taskManager 和 jobManager（jobMaster）的心跳
+            //所有动作完成后会给 ResourceManager 自己发送一个 START 信息，表示集群以启动
             resourceManagerService =
                     ResourceManagerServiceImpl.create(
                             resourceManagerFactory,
@@ -249,6 +260,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             partialDispatcherServices);
 
             log.debug("Starting ResourceManagerService.");
+            //所有动作完成后会给 ResourceManager 自己发送一个 START 信息，表示集群以启动
             resourceManagerService.start();
 
             resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
