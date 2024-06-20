@@ -401,6 +401,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         // 获取待部署或恢复的 diapatcher
         for (JobGraph recoveredJob : recoveredJobs) {
+            // 恢复作业
             runRecoveredJob(recoveredJob);
         }
         recoveredJobs.clear();
@@ -413,7 +414,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         try (MdcCloseable ignored =
                 MdcUtils.withContext(MdcUtils.asContextData(recoveredJob.getJobID()))) {
-            runJob(createJobMasterRunner(recoveredJob), ExecutionType.RECOVERY);
+
+            runJob(
+                    // 初始化 JobMasterServiceLeadershipRunner 用于后续启动 JobMaster
+                    // 在 runJob 中会调用 start 启动并创建 JobMaster
+                    createJobMasterRunner(recoveredJob),
+                    ExecutionType.RECOVERY
+            );
+
         } catch (Throwable throwable) {
             onFatalError(
                     new DispatcherException(
@@ -660,6 +668,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
+
+        // 初始化 JobMasterServiceLeadershipRunner 用于后续启动 JobMaster
+        // org.apache.flink.runtime.dispatcher.JobMasterServiceLeadershipRunnerFactory.createJobManagerRunner
         return jobManagerRunnerFactory.createJobManagerRunner(
                 jobGraph,
                 configuration,
@@ -684,7 +695,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void runJob(JobManagerRunner jobManagerRunner, ExecutionType executionType)
             throws Exception {
+
+        // 启动 JobManagerRunner，开始选举
+        // org.apache.flink.runtime.jobmaster.JobMasterServiceLeadershipRunner.start
+        // org.apache.flink.runtime.leaderelection.StandaloneLeaderElection.startLeaderElection
+        // org.apache.flink.runtime.jobmaster.JobMasterServiceLeadershipRunner.grantLeadership
         jobManagerRunner.start();
+
+
         jobManagerRunnerRegistry.register(jobManagerRunner);
 
         final JobID jobId = jobManagerRunner.getJobID();

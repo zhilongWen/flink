@@ -88,6 +88,8 @@ public class DefaultJobMasterServiceProcess
             Function<Throwable, ArchivedExecutionGraph> failedArchivedExecutionGraphFactory) {
         this.jobId = jobId;
         this.leaderSessionId = leaderSessionId;
+
+        // 创建并启动 jobMaster
         this.jobMasterServiceFuture =
                 jobMasterServiceFactory.createJobMasterService(leaderSessionId, this);
 

@@ -97,6 +97,8 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 
         return CompletableFuture.supplyAsync(
                 FunctionUtils.uncheckedSupplier(
+
+                        // 创建 jobMaster
                         () -> internalCreateJobMasterService(leaderSessionId, onCompletionActions)),
                 executor);
     }
@@ -104,6 +106,9 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
     private JobMasterService internalCreateJobMasterService(
             UUID leaderSessionId, OnCompletionActions onCompletionActions) throws Exception {
 
+
+        // 创建 jobMaster
+        // rpc 服务，调用器 onStart 方法，启动 jobMaster 是在 dispatcher 创建完后异步创建启动的
         final JobMaster jobMaster =
                 new JobMaster(
                         rpcService,
@@ -130,6 +135,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
                         failureEnrichers,
                         initializationTimestamp);
 
+        // 启动 jobMaster ,啥也没有，就是给自己发一个 START 消息
         jobMaster.start();
 
         return jobMaster;
