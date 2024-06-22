@@ -134,7 +134,8 @@ public class DefaultExecutionGraphBuilder {
                             blobWriter,
                             nonFinishedHybridPartitionShouldBeUnknown,
                             offloadShuffleDescriptorsThreshold);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new JobException("Could not create the TaskDeploymentDescriptorFactory.", e);
         }
 
@@ -165,6 +166,8 @@ public class DefaultExecutionGraphBuilder {
         // set the basic properties
 
         try {
+
+
             executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
         } catch (Throwable t) {
             log.warn("Cannot create JSON plan for job", t);
@@ -218,6 +221,8 @@ public class DefaultExecutionGraphBuilder {
                     jobName,
                     jobId);
         }
+
+        // 方法将 JobGraph 转换成 ExecutionGraph
         executionGraph.attachJobGraph(sortedTopology, jobManagerJobMetricGroup);
 
         if (log.isDebugEnabled()) {
@@ -229,7 +234,8 @@ public class DefaultExecutionGraphBuilder {
         if (isDynamicGraph) {
             // dynamic graph does not support checkpointing so we skip it
             log.warn("Skip setting up checkpointing for a job with dynamic graph.");
-        } else if (isCheckpointingEnabled(jobGraph)) {
+        }
+        else if (isCheckpointingEnabled(jobGraph)) {
             JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 
             // load the state backend from the application settings

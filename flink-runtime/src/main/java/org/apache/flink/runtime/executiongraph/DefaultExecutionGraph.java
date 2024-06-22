@@ -840,6 +840,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 tasks.size(),
                 intermediateResults.size());
 
+        // 将 JobGraph 转换成 ExecutionGraph
         attachJobVertices(verticesToAttach, jobManagerJobMetricGroup);
         if (!isDynamic) {
             initializeJobVertices(verticesToAttach);
@@ -866,6 +867,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     parallelismStore.getParallelismInfo(jobVertex.getID());
 
             // create the execution job vertex and attach it to the graph
+            // 将 JobVertex 转为 ExecutionJobVertex
+            // 一个 JobVertex 对应的创建一个 ExecutionJobVertex
             ExecutionJobVertex ejv =
                     executionJobVertexFactory.createExecutionJobVertex(
                             this,
@@ -874,6 +877,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                             coordinatorStore,
                             jobManagerJobMetricGroup);
 
+            // 将生成好的 ExecutionJobVertex 加入到 ExecutionGraph 中
             ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
             if (previousTask != null) {
                 throw new JobException(
@@ -882,6 +886,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                                 jobVertex.getID(), ejv, previousTask));
             }
 
+            // 按创建顺序保存的 ExecutionJobVertex
             this.verticesInCreationOrder.add(ejv);
             this.numJobVerticesTotal++;
         }
@@ -910,12 +915,16 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 (resultId, info) ->
                         this.vertexInputInfoStore.put(ejv.getJobVertexId(), resultId, info));
 
+        // ExecutionJobVertex 初始化
         ejv.initialize(
                 executionHistorySizeLimit,
                 rpcTimeout,
                 createTimestamp,
                 this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()));
 
+        // 处理 JobEdge 和 IntermediateResult 和 ExecutionJobVertex中的 ExecutionVertex
+        // 对每个 JobEdge，获取对应的 IntermediateResult，并记录到本节点的输入上
+        // 最后，把每个 ExecutorVertex 和对应的 IntermediateResult 关联起来
         ejv.connectToPredecessors(this.intermediateResults);
 
         for (IntermediateResult res : ejv.getProducedDataSets()) {

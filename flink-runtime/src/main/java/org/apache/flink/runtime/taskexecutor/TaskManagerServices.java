@@ -335,12 +335,21 @@ public class TaskManagerServices {
         // pre-start checks
         checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
 
+        // 初始化 TaskEventDispatcher
+        // Flink 运行的是 流式任务:  StreamTask （OperatorChain Pipline   输入给我，调用 Transformation执行，输出结果）
         final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
         // start the I/O manager, it will create some temp directories.
+        // 初始化 IOManagerASync
+        // 启动一定数量的 WriterThread 和 ReaderThread
         final IOManager ioManager =
                 new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
+        // 启动过程中，启动了 Netty 服务端 和 客户端，负责 IO 的
+        // shuffleEnvironment = NettyShuffleEnvironment
+        // 上游 StreamTask 和 下游 StreamTask 有 shuffle 动作
+        // 在这个动作过程中，肯定需要很多的一些组件来为其服务， 现在创建的这个 NettyShuffleEnvironment
+        // 对象为将来的 SHuffle 提供各种组件创建的支撑
         final ShuffleEnvironment<?, ?> shuffleEnvironment =
                 createShuffleEnvironment(
                         taskManagerServicesConfiguration,
@@ -348,12 +357,15 @@ public class TaskManagerServices {
                         taskManagerMetricGroup,
                         ioExecutor,
                         scheduledExecutor);
+        // 启动过程中，启动了 Netty 服务端 和 客户端，负责 IO 的
         final int listeningDataPort = shuffleEnvironment.start();
 
         LOG.info(
                 "TaskManager data connection initialized successfully; listening internally on port: {}",
                 listeningDataPort);
 
+        // 初始化 KVStageService = KvStateService
+        // 状态管理服务
         final KvStateService kvStateService =
                 KvStateService.fromConfiguration(taskManagerServicesConfiguration);
         kvStateService.start();
@@ -369,8 +381,11 @@ public class TaskManagerServices {
                                 : listeningDataPort,
                         taskManagerServicesConfiguration.getNodeId());
 
+        // 初始化 BroadCastVariableManager = BroadcastVariableManager
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
+        // 初始化 TaskSlotTable = TaskSlotTableImpl
+        // 当前节点能提供很多的 Slot， 也会执行很多的 Task，到底哪些 Task 对应到 哪些 Slot 执行，这里面通过一张表进行管理
         final TaskSlotTable<Task> taskSlotTable =
                 createTaskSlotTable(
                         taskManagerServicesConfiguration.getNumberOfSlots(),
@@ -379,13 +394,17 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.getPageSize(),
                         ioExecutor);
 
+        // 初始化 JobTable = DefaultJobTable
         final JobTable jobTable = DefaultJobTable.create();
 
+        // 初始化 JobLeaderService（JobMaster）
         final JobLeaderService jobLeaderService =
                 new DefaultJobLeaderService(
                         unresolvedTaskManagerLocation,
                         taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
+
+        // 初始化 TaskExecutorLocalStateStoresManager
         final TaskExecutorLocalStateStoresManager taskStateManager =
                 new TaskExecutorLocalStateStoresManager(
                         taskManagerServicesConfiguration.isLocalRecoveryEnabled(),
@@ -410,6 +429,10 @@ public class TaskManagerServices {
                 taskManagerServicesConfiguration
                         .getConfiguration()
                         .get(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+
+        // 初始化 LibraryCacheManager
+        // 第一个参数： PermanentBlobService
+        // 第二个参数： DefaultClassLoaderFactory
         final LibraryCacheManager libraryCacheManager =
                 new BlobLibraryCacheManager(
                         permanentBlobService,
@@ -441,6 +464,7 @@ public class TaskManagerServices {
                 new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>()
                         .create();
 
+        // 返回： TaskManagerServices
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,
                 taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
@@ -493,6 +517,7 @@ public class TaskManagerServices {
             ScheduledExecutor scheduledExecutor)
             throws FlinkException {
 
+        // 构建 Shuffle 上下文对象：ShuffleEnvironmentContext
         final ShuffleEnvironmentContext shuffleEnvironmentContext =
                 new ShuffleEnvironmentContext(
                         taskManagerServicesConfiguration.getConfiguration(),
@@ -507,6 +532,7 @@ public class TaskManagerServices {
                         ioExecutor,
                         scheduledExecutor);
 
+        // 通过反射拿到 NettyShuffleServiceFactory 对象
         return ShuffleServiceLoader.loadShuffleServiceFactory(
                         taskManagerServicesConfiguration.getConfiguration())
                 .createShuffleEnvironment(shuffleEnvironmentContext);

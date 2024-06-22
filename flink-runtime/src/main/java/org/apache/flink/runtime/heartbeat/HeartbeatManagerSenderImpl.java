@@ -79,6 +79,12 @@ class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O> implem
 
     @Override
     public void run() {
+
+        // 在创建 JobManager 时，会创建并启动 ResourceManager，并且在 RedourceManager 中会启动两个心跳服务，
+        // 具体方法见 org.apache.flink.runtime.resourcemanager.ResourceManager#startHeartbeatServices，
+        // 其中 taskManagerHeartbeatManager 就是管理 ResourceManager 与 TaskExecutor 之前间的心跳，
+        // 当有注册信息中有 TaskExecutor 就会每个 10s 向所有注册的 TaskExecutor 发送心跳
+
         if (!stopped) {
             log.debug("Trigger heartbeat request.");
             for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets().values()) {
@@ -94,6 +100,8 @@ class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O> implem
         final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
         heartbeatTarget
+                // resourceManager 向 taskExecutor 发送心跳
+                //  org.apache.flink.runtime.resourcemanager.ResourceManager.TaskExecutorHeartbeatSender.requestHeartbeat
                 .requestHeartbeat(getOwnResourceID(), payload)
                 .whenCompleteAsync(
                         handleHeartbeatRpc(heartbeatMonitor.getHeartbeatTargetId()),

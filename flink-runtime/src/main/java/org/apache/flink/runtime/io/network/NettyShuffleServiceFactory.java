@@ -164,6 +164,7 @@ public class NettyShuffleServiceFactory
         checkNotNull(metricGroup);
         checkNotNull(connectionManager);
 
+        // 返回： FileChannelManagerImpl
         FileChannelManager fileChannelManager =
                 new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
         if (LOG.isInfoEnabled()) {

@@ -128,6 +128,7 @@ public class ExecutionVertex
         this.resultPartitions = new LinkedHashMap<>(producedDataSets.length, 1);
 
         for (IntermediateResult result : producedDataSets) {
+            // 创建 IntermediateResultPartition
             IntermediateResultPartition irp =
                     new IntermediateResultPartition(
                             result,

@@ -484,6 +484,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         if (throwable != null) {
                             return new RegistrationResponse.Failure(throwable);
                         } else {
+
+
+                            // 注册
                             return registerTaskExecutorInternal(
                                     taskExecutorGateway, taskExecutorRegistration);
                         }
@@ -1032,7 +1035,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private RegistrationResponse registerTaskExecutorInternal(
             TaskExecutorGateway taskExecutorGateway,
             TaskExecutorRegistration taskExecutorRegistration) {
+
+        // 获取 TaskExecutor 的 ResourceID
+        // 如果之前注册过， 从 SlotManager 中移除旧的 TaskManager，重新注册
+        // 注册其实就是将 TaskExecutor 的信息包装成一个 WorkerRegistration 然后放入  ResourceManager 的成员变量 taskExecutors map 结构
+        // 中，其中 key 为 TaskExecutor 的唯一 id 标识，创建时自动生成的，value 就是封装后的 WorkerRegistration
+
+
+        // 获取 TaskExecutor 的 ResourceID
         ResourceID taskExecutorResourceId = taskExecutorRegistration.getResourceId();
+
+        // 移除旧的注册对象
         WorkerRegistration<WorkerType> oldRegistration =
                 taskExecutors.remove(taskExecutorResourceId);
         if (oldRegistration != null) {
@@ -1041,6 +1054,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     "Replacing old registration of TaskExecutor {}.",
                     taskExecutorResourceId.getStringWithMetadata());
 
+            // 从 SlotManager 中移除旧的 TaskManager
             // remove old task manager registration from slot manager
             slotManager.unregisterTaskManager(
                     oldRegistration.getInstanceID(),
@@ -1064,6 +1078,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     "The ResourceManager does not recognize this TaskExecutor.");
         } else {
             WorkerType newWorker = newWorkerOptional.get();
+
+            // 构造一个 WorkerRegistration
+            // TaskExecutorRegistration
+            // ResourceManagerRegistration
+            // WorkerRegistration
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(
                             taskExecutorGateway,
@@ -1080,11 +1099,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     "Registering TaskManager with ResourceID {} ({}) at ResourceManager",
                     taskExecutorResourceId.getStringWithMetadata(),
                     taskExecutorAddress);
+
+            // 注册，将 taskExecutor 信息放入 taskExecutors map 中
+            // key = ResourceID
+            // value = WorkerRegistration
             taskExecutors.put(taskExecutorResourceId, registration);
 
+            // 注册成功，开始心跳
+            // 维持心跳 = monitorTarget
+            // 主节点主动！
+            // 1、taskExecutorResourceId
+            // 2、HeartbeatTarget，针对每一个 TaskEXecutor 都有一个唯一的 HeartbeatTarget 对象！
             taskManagerHeartbeatManager.monitorTarget(
                     taskExecutorResourceId, new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
+            // 返回 TaskExecutor 注册成功消息
             return new TaskExecutorRegistrationSuccess(
                     registration.getInstanceID(),
                     resourceId,
@@ -1398,6 +1427,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         @Override
         public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
+
+            // RPC 请求
+            // 发送心跳， 回到 TaskExecutor
+            // org.apache.flink.runtime.taskexecutor.TaskExecutor.heartbeatFromResourceManager
             return taskExecutorGateway.heartbeatFromResourceManager(resourceID);
         }
     }

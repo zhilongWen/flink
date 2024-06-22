@@ -1021,6 +1021,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         // 启动 jobMaster 的相关服务
         // 与 TaskManager 和 flink 的 ResourceManager 心跳
+        // slotPool 用于管理作业运行的资源
         startJobMasterServices();
 
         log.info(
@@ -1029,7 +1030,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 jobGraph.getJobID(),
                 getFencingToken());
 
-        // 开始调度
+        // JobMaster 调度 StreamTask 去运行
         startScheduling();
     }
 

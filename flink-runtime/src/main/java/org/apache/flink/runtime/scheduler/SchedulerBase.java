@@ -379,6 +379,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             VertexParallelismStore vertexParallelismStore)
             throws Exception {
 
+        // 将 jobGraph 转为 ExecutionGraph
         final ExecutionGraph newExecutionGraph =
                 executionGraphFactory.createAndRestoreExecutionGraph(
                         jobGraph,

@@ -612,6 +612,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         String externalAddress = rpcService.getAddress();
 
+        // 获取资源定义对象
+        // 一台真实的物理节点，到底有哪些资源（cpucore， memroy, network, ...）
+        // 将来这个 TaskExecutor 在进行注册的时候，会将当前节点的资源，汇报给 RM
         final TaskExecutorResourceSpec taskExecutorResourceSpec =
                 TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 
@@ -631,11 +634,25 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         resourceID,
                         taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
+        // 初始化 ioExecutor CPU * 4
         final ExecutorService ioExecutor =
                 Executors.newFixedThreadPool(
                         taskManagerServicesConfiguration.getNumIoThreads(),
                         new ExecutorThreadFactory("flink-taskexecutor-io"));
 
+        // taskManagerServices = TaskManagerServices
+        // 里头初始化了很多很多的 TaskManager 在运行过程中需要的服务
+        // 在这儿 TaskManager 启动之前，已经初始化了一些服务组件，基础服务，
+        // 这里面创建的服务，就是 TaskManager 在运行过程中，真正需要的用来对外提供服务的 各种服务组件
+        //1、初始化 TaskEventDispatcher，Flink 运行的是 流式任务:  StreamTask （OperatorChain Pipline   输入给我，调用 Transformation执行，输出结果）
+        //2、初始化 IOManagerASync，启动一定数量的 WriterThread 和 ReaderThread
+        //3、创建 ShuffleEnvironment（NettyShuffleEnvironment），启动过程中，启动了 Netty 服务端 和 客户端，负责 IO 的
+        //4、初始化 KVStageService 状态管理服务
+        //5、初始化 BroadCastVariableManager
+        //6、初始化 TaskSlotTable（TaskSlotTableImpl），用来管理哪些 Task 对应到 哪些 Slot 执行，这里面通过一张表进行管理
+        //7、初始化 JobTable
+        //8、初始化 JobLeaderService（JobMaster）
+        //9、初始化 StateRootDirectory 和 StateRootDirectoryFile
         TaskManagerServices taskManagerServices =
                 TaskManagerServices.fromConfiguration(
                         taskManagerServicesConfiguration,
@@ -660,6 +677,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 
+        // 创建 TaskExecutor 实例
+        // 内部会创建两个重要的心跳管理器：
+        //  1、JobManagerHeartbeatManager
+        //  2、ResourceManagerHeartbeatManager
+        // 这里才是 初始化  TaskManagerRunner 最重要的地方！
+        // 由于当前这个 TaskExecutor 是 RpcEndpoint 的子类，所以在上述构造方法执行完毕的时候，要转到 onStart() 方法执行
         return new TaskExecutor(
                 rpcService,
                 taskManagerConfiguration,
@@ -673,6 +696,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 fatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
                 delegationTokenReceiverRepository);
+
+
     }
 
     /**

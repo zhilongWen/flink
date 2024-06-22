@@ -327,6 +327,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             TaskExecutorPartitionTracker partitionTracker,
             DelegationTokenReceiverRepository delegationTokenReceiverRepository) {
 
+        // 创建形式为prefix_X的随机名称，其中X为递增数字
         super(rpcService, RpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
         checkArgument(
@@ -452,7 +453,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public void onStart() throws Exception {
+
+        // 在 onStart 方法中会启动 TaskExecutor 并将其注册到 ResourceManager
+
         try {
+
+            // 开启服务
+            // 重要的四件事情：
+            //   1、监控 ResourceManager
+            //      1、链接 ResourceManager
+            //      2、注册
+            //      3、维持心跳
+            //      4、当前 TaskExecutor 也会监控 RM 的变更
+            //  2、启动 TaskSlotTable 服务
+            //  3、监控 JobMaster
+            //  4、启动 FileCache 服务
             startTaskExecutorServices();
         } catch (Throwable t) {
             final TaskManagerException exception =
@@ -462,13 +477,33 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             throw exception;
         }
 
+        // 开始注册
         startRegistrationTimeout();
     }
 
     private void startTaskExecutorServices() throws Exception {
+
+        // 启动 TaskExecutor 与 ResourceManager 建立连接，然后添加监听：ResourceManagerLeaderListener 监听 RM 的变更，
+        // 如果监控 ResourceManager 的 leader 变化，将会调用 notifyLeaderAddress() 方法去触发与 ResourceManager 的重连
+
         try {
+
+             // 与 ResourceManager 建立连接，然后添加监听：ResourceManagerLeaderListener 监听 RM 的变更
+             //  启动 ResourceManagerLeaderListener， 监听 ResourceManager 的变更
+             //  TaskManger 向 ResourceManager 注册是通过 ResourceManagerLeaderListener 来完成的，
+             //  它会监控 ResourceManager 的 leader 变化， 如果有新的 leader 被选举出来，
+             //  将会调用 notifyLeaderAddress() 方法去触发与 ResourceManager 的重连
+             //  1、ZooKeeperLeaderRetrievalService = resourceManagerLeaderRetriever
             // start by connecting to the ResourceManager
             resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+
+//            注释： 记住这种代码结构：
+//            1、ResourceManagerLeaderListener 是 LeaderRetrievalListener 的子类
+//            2、NodeCacheListener 是 curator 提供的监听器，当指定的 zookeeper znode 节点数据发生改变，则会接收到通知
+//            回调 nodeChanged() 方法
+//            3、在 nodeChanged() 会调用对应的 LeaderRetrievalListener 的 notifyLeaderAddress() 方法
+//            4、resourceManagerLeaderRetriever 的实现类是： LeaderRetrievalService的实现类：ZooKeeperLeaderRetrievalService，它是 NodeCacheListener 的子类
+//            5、resourceManagerLeaderRetriever 进行监听，当发生变更的时候，就会回调：ResourceManagerLeaderListener 的 notifyLeaderAddress 方法
 
             // tell the task slot table who's responsible for the task slot actions
             taskSlotTable.start(new SlotActionsImpl(), getMainThreadExecutor());
@@ -1505,8 +1540,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void reconnectToResourceManager(Exception cause) {
+        // 关闭和原有的 ResourceManager 的链接
         closeResourceManagerConnection(cause);
+        // 启动一个注册连接的定时器
+        // 注册超时检测延迟 5min 执行，从现在开始计时，如果倒计时5min中，到了，还没有注册成功，则意味着注册超时
         startRegistrationTimeout();
+        // 接接新的 ResourceManager 进行注册
         tryConnectToResourceManager();
     }
 
@@ -1523,6 +1562,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         log.info("Connecting to ResourceManager {}.", resourceManagerAddress);
 
+        // 构建 TaskExecutorRegistration 对象, 用于注册
+        // 封装了当前 TaskEXecutor 的各种信息，到时候，会通过注册发送给 RM
         final TaskExecutorRegistration taskExecutorRegistration =
                 new TaskExecutorRegistration(
                         getAddress(),
@@ -1535,6 +1576,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         taskManagerConfiguration.getTotalResourceProfile(),
                         unresolvedTaskManagerLocation.getNodeId());
 
+        // TaskExecutor 和 ResourceManager 之间的链接对象
         resourceManagerConnection =
                 new TaskExecutorToResourceManagerConnection(
                         log,
@@ -1545,6 +1587,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getMainThreadExecutor(),
                         new ResourceManagerRegistrationListener(),
                         taskExecutorRegistration);
+
+        // 启动
         resourceManagerConnection.start();
     }
 
@@ -1635,6 +1679,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void startRegistrationTimeout() {
+
+        // 启动注册超时的检测，默认是 5min，如果超过这个时间还没注册完成，就会抛出异常退出进程，启动失败
         final Duration maxRegistrationDuration =
                 taskManagerConfiguration.getMaxRegistrationDuration();
 
@@ -1642,7 +1688,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final UUID newRegistrationTimeoutId = UUID.randomUUID();
             currentRegistrationTimeoutId = newRegistrationTimeoutId;
             scheduleRunAsync(
-                    () -> registrationTimeout(newRegistrationTimeoutId), maxRegistrationDuration);
+                    () ->
+                            // 延迟 五分钟，执行 registrationTimeout() 检查是否超时
+                            registrationTimeout(newRegistrationTimeoutId), maxRegistrationDuration);
         }
     }
 
@@ -1651,6 +1699,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void registrationTimeout(@Nonnull UUID registrationTimeoutId) {
+
+        // 判断启动检测任务时的 registrationTimeoutId 与当前的 registrationTimeoutId 是否一样，一样则说明注册超时，否则注册成功
+        //如果注册成功，这就意味着需要修改  registrationTimeoutId
         if (registrationTimeoutId.equals(currentRegistrationTimeoutId)) {
             final Duration maxRegistrationDuration =
                     taskManagerConfiguration.getMaxRegistrationDuration();

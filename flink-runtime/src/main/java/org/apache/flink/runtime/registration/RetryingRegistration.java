@@ -145,6 +145,7 @@ public abstract class RetryingRegistration<
             final CompletableFuture<G> rpcGatewayFuture;
 
             if (FencedRpcGateway.class.isAssignableFrom(targetType)) {
+                // 链接 RM
                 rpcGatewayFuture =
                         (CompletableFuture<G>)
                                 rpcService.connect(
@@ -160,6 +161,8 @@ public abstract class RetryingRegistration<
                     rpcGatewayFuture.thenAcceptAsync(
                             (G rpcGateway) -> {
                                 log.info("Resolved {} address, beginning registration", targetName);
+
+                                // 执行注册
                                 register(
                                         rpcGateway,
                                         1,
@@ -169,6 +172,7 @@ public abstract class RetryingRegistration<
                             rpcService.getScheduledExecutor());
 
             // upon failure, retry, unless this is cancelled
+            // 如果失败则再次尝试注册
             rpcGatewayAcceptFuture.whenCompleteAsync(
                     (Void v, Throwable failure) -> {
                         if (failure != null && !canceled) {
@@ -189,6 +193,7 @@ public abstract class RetryingRegistration<
                                         retryingRegistrationConfiguration.getErrorDelayMillis(),
                                         strippedFailure.getMessage());
                             }
+
 
                             startRegistrationLater(
                                     retryingRegistrationConfiguration.getErrorDelayMillis());
@@ -218,7 +223,11 @@ public abstract class RetryingRegistration<
                     targetName,
                     attempt,
                     timeoutMillis);
+
+
             CompletableFuture<RegistrationResponse> registrationFuture =
+                    // 注册
+                    // org.apache.flink.runtime.taskexecutor.TaskExecutorToResourceManagerConnection.ResourceManagerRegistration.invokeRegistration
                     invokeRegistration(gateway, fencingToken, timeoutMillis);
 
             // if the registration was successful, let the TaskExecutor know
@@ -226,6 +235,16 @@ public abstract class RetryingRegistration<
                     registrationFuture.thenAcceptAsync(
                             (RegistrationResponse result) -> {
                                 if (!isCanceled()) {
+
+                                    // 如果注册成功
+                                    // TaskExecutor　向 ResourceManager 注册成功之后，就应该要做一件事：
+                                    // 应该开始间隔发心跳！
+                                    // Flink 集群 和 HDFS 集群不一样：
+                                    // 1、HDFS： datanode 主动给 namenode 发送心跳
+                                    // 2、Flink： resourcemanager 先向 taskExcutor 发送心跳请求
+                                    //  然后 taskExecutor 才发送心跳，
+                                    //  resourceManager 处理
+                                    //  再返回一个响应
                                     if (result instanceof RegistrationResponse.Success) {
                                         log.debug(
                                                 "Registration with {} at {} was successful.",

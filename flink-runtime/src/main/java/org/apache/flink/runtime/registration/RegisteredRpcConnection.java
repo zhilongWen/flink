@@ -102,6 +102,10 @@ public abstract class RegisteredRpcConnection<
                 !isConnected() && pendingRegistration == null,
                 "The RPC connection is already started");
 
+        // 创建注册对象
+        // 返回的结果是：
+        //  1、TaskExecutor注册： TaskExecutorToResourceManagerConnection.ResourceManagerRegistration
+        //  2、JobManager注册： DefaultJobLeaderService.JobManagerRetryingRegistration
         final RetryingRegistration<F, G, S, R> newRegistration = createNewRegistration();
 
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {

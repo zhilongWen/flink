@@ -156,6 +156,8 @@ public class TaskExecutorToResourceManagerConnection
                 throws Exception {
 
             Time timeout = Time.milliseconds(timeoutMillis);
+            // 向 ResourceManager 注册 TaskExecutor
+            // org.apache.flink.runtime.resourcemanager.ResourceManager.registerTaskExecutor
             return resourceManager.registerTaskExecutor(taskExecutorRegistration, timeout);
         }
     }

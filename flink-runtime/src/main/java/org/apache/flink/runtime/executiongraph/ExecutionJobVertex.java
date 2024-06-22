@@ -195,17 +195,22 @@ public class ExecutionJobVertex
         checkState(parallelismInfo.getParallelism() > 0);
         checkState(!isInitialized());
 
+        // 根据并行度的数量创建对于数量的 ExecutionVertex，这里是一个空数组
+        // 并创建好 IntermediateResultPartition
         this.taskVertices = new ExecutionVertex[parallelismInfo.getParallelism()];
 
         this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 
         // create the intermediate results
+        // 根据生产者的数量创建对应数量的 IntermediateResult，
+        // IntermediateResult 的数量和 ExecutionJobVertex 数量一样
         this.producedDataSets =
                 new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
 
         for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
             final IntermediateDataSet result = jobVertex.getProducedDataSets().get(i);
 
+            // 创建 IntermediateResult 并创建下游消费者对应数量的 IntermediateResultPartition
             this.producedDataSets[i] =
                     new IntermediateResult(
                             result,
@@ -216,6 +221,7 @@ public class ExecutionJobVertex
 
         // create all task vertices
         for (int i = 0; i < this.parallelismInfo.getParallelism(); i++) {
+            // 创建 ExecutionVertex 并放入 taskVertices 中
             ExecutionVertex vertex =
                     createExecutionVertex(
                             this,
@@ -523,6 +529,7 @@ public class ExecutionJobVertex
 
             this.inputs.add(ires);
 
+            // 构建 edge 连接顶点和边
             EdgeManagerBuildUtil.connectVertexToResult(this, ires);
         }
     }

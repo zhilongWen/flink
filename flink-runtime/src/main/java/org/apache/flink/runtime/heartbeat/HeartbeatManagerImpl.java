@@ -141,6 +141,8 @@ class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                         "The target with resource ID {} is already been monitored.",
                         resourceID.getStringWithMetadata());
             } else {
+
+                // 创建一个 心跳管理器 HeartbeatMonitorImpl
                 HeartbeatMonitor<O> heartbeatMonitor =
                         heartbeatMonitorFactory.createHeartbeatMonitor(
                                 resourceID,
@@ -150,6 +152,13 @@ class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                                 heartbeatTimeoutIntervalMs,
                                 failedRpcRequestsUntilUnreachable);
 
+                // 一个 ResourceManager 对应一个 HeartbeatMonitor，被保管在 heartbeatTargets 中
+                // heartbeatMonitor 会被 HeartbeatManagerImpl 周期性的调度
+                // heartbeatTargets 这个 map 管理的是：
+                // key:  TaskExecution 的 ID
+                // value：  heartbeatMonitor 包装了 heartbeatTarget， target中有两个方法：
+                //              receiveHeartBeat()
+                //              requestHeartBeat()
                 heartbeatTargets.put(resourceID, heartbeatMonitor);
 
                 // check if we have stopped in the meantime (concurrent stop operation)
@@ -231,6 +240,8 @@ class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                     heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
                 }
 
+                // TaskManager 收到 ResourceManager 心跳
+                //  org.apache.flink.runtime.taskexecutor.TaskExecutor.ResourceManagerHeartbeatReceiver.receiveHeartbeat
                 heartbeatTarget
                         .receiveHeartbeat(
                                 getOwnResourceID(),

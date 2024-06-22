@@ -75,6 +75,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
     public IOManagerAsync(String[] tempDirs) {
         super(tempDirs);
 
+        // 启动一定数量的 WriterThread
         // start a write worker thread for each directory
         this.writers = new WriterThread[tempDirs.length];
         for (int i = 0; i < this.writers.length; i++) {
@@ -86,6 +87,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
             t.start();
         }
 
+        // 启动一定数量的 ReaderThread
         // start a reader worker thread for each directory
         this.readers = new ReaderThread[tempDirs.length];
         for (int i = 0; i < this.readers.length; i++) {
@@ -97,6 +99,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
             t.start();
         }
 
+        // 埋下钩子 方便关闭
         // install a shutdown hook that makes sure the temp directories get deleted
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(this::close, getClass().getSimpleName(), LOG);
@@ -363,6 +366,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
         @Override
         public void run() {
 
+            // 读上游算子的数据
             while (alive) {
 
                 // get the next buffer. ignore interrupts that are not due to a shutdown.
@@ -472,6 +476,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
         @Override
         public void run() {
 
+            // 将数据写给下游的算子
             while (this.alive) {
 
                 WriteRequest request = null;
