@@ -507,16 +507,25 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             InstanceID taskManagerRegistrationId,
             SlotReport slotReport,
             Time timeout) {
+
+
+        // ResourceManager 接收到 TaskExecutor 的 slot 注册请求，然后将请求交由 SlotManager 处理，注册成功后返回 TaskManager 汇报成功消息
+
+        // 拿到该 TaskExecutor 的注册信息对象
         final WorkerRegistration<WorkerType> workerTypeWorkerRegistration =
                 taskExecutors.get(taskManagerResourceId);
 
         if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
             SlotManager.RegistrationResult registrationResult =
+                    // 注册 Slot
+                    // org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManager.registerTaskManager）处理注册请求
                     slotManager.registerTaskManager(
                             workerTypeWorkerRegistration,
                             slotReport,
                             workerTypeWorkerRegistration.getTotalResourceProfile(),
                             workerTypeWorkerRegistration.getDefaultSlotResourceProfile());
+
+            // 返回 TaskManager 汇报成功消息
             if (registrationResult == SlotManager.RegistrationResult.SUCCESS) {
                 WorkerResourceSpec workerResourceSpec =
                         WorkerResourceSpec.fromTotalResourceProfile(

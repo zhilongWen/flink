@@ -1598,10 +1598,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             InstanceID taskExecutorRegistrationId,
             ClusterInformation clusterInformation) {
 
+        // Slot 汇报， 发送给 ResourceManager
         final CompletableFuture<Acknowledge> slotReportResponseFuture =
                 resourceManagerGateway.sendSlotReport(
                         getResourceID(),
                         taskExecutorRegistrationId,
+                        // 生成一个 Slot 报告
                         taskSlotTable.createSlotReport(getResourceID()),
                         Time.fromDuration(taskManagerConfiguration.getRpcTimeout()));
 
@@ -2561,6 +2563,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         public void onRegistrationSuccess(
                 TaskExecutorToResourceManagerConnection connection,
                 TaskExecutorRegistrationSuccess success) {
+
+            // TaskExecutor 向 ResourceManager 注册成功后调用 TaskExecutor 的内部类
+            // ResourceManagerRegistrationListener 的 onRegistrationSuccess 方法开始上报 slot manger 等资源到 ResourceManager（slotManager）
+
             final ResourceID resourceManagerId = success.getResourceManagerId();
             final InstanceID taskExecutorRegistrationId = success.getRegistrationId();
             final ClusterInformation clusterInformation = success.getClusterInformation();
@@ -2583,6 +2589,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         //noinspection ObjectEquality
                         if (resourceManagerConnection == connection) {
                             try {
+
+                                // 建立和 ResourceManager 的链接，然后进行 slot 汇报
                                 establishResourceManagerConnection(
                                         resourceManagerGateway,
                                         resourceManagerId,

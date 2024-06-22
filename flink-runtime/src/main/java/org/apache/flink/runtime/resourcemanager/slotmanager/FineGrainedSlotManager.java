@@ -353,9 +353,12 @@ public class FineGrainedSlotManager implements SlotManager {
             LOG.debug(
                     "Task executor {} was already registered.",
                     taskExecutorConnection.getResourceID());
+
+            // 报告 Slot 的状态
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
             return RegistrationResult.IGNORED;
         } else {
+
             Optional<PendingTaskManager> matchedPendingTaskManagerOptional =
                     initialSlotReport.hasAllocatedSlot()
                             ? Optional.empty()
@@ -377,14 +380,20 @@ public class FineGrainedSlotManager implements SlotManager {
                     taskExecutorConnection, totalResourceProfile, defaultSlotResourceProfile);
 
             if (initialSlotReport.hasAllocatedSlot()) {
+
+                // 报告 Slot 的状态
                 slotStatusSyncer.reportSlotStatus(
                         taskExecutorConnection.getInstanceID(), initialSlotReport);
             }
 
             if (matchedPendingTaskManagerOptional.isPresent()) {
+
                 PendingTaskManager pendingTaskManager = matchedPendingTaskManagerOptional.get();
+
+
                 allocateSlotsForRegisteredPendingTaskManager(
                         pendingTaskManager, taskExecutorConnection.getInstanceID());
+
                 taskManagerTracker.removePendingTaskManager(
                         pendingTaskManager.getPendingTaskManagerId());
                 return RegistrationResult.SUCCESS;
