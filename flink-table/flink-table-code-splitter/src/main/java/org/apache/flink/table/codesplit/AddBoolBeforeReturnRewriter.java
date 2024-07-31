@@ -76,6 +76,7 @@ import java.util.Map;
  *     }
  * }
  * </code></pre>
+ * @author wenzhilong
  */
 @Internal
 public class AddBoolBeforeReturnRewriter implements CodeRewriter {
